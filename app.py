@@ -17,8 +17,14 @@ PROFESIONALES_CSV = "profesionales.csv"
 # Conectar a la base de datos SQLite
 DB_NAME = 'salud_mental.db'
 
-def crear_tablas():
+# Función para obtener la conexión a la base de datos (CRUCIAL)
+def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row  # Para acceder a los datos por nombre de columna
+    return conn
+
+def crear_tablas():
+    conn = get_db_connection()
     cursor = conn.cursor()
     
     # Crear tabla de usuarios
@@ -82,59 +88,67 @@ def verificar_usuario(usuario, contrasenia):
     return not df[(df["usuario"] == usuario) & (df["contrasenia"] == contrasenia)].empty
 
 def cargar_datos_usuarios(dni, apellido, nombre, genero, fecha_nacimiento, edad_actual, ciudad, domicilio, telefono, email, protocolo_activado, protocolo_nombre, fecha_derivacion, profesional_derivante, observaciones_clinicas):
-    conn = sqlite3.connect(DB_NAME)
+    st.write("Intentando obtener conexión a la base de datos (cargar_datos_usuarios)...")
+    conn = get_db_connection()
+    st.write("Conexión obtenida (cargar_datos_usuarios).")
     cursor = conn.cursor()
-    
-    cursor.execute(''' 
-        INSERT INTO pacientes (dni, apellido, nombre, genero, fecha_nacimiento, edad_actual, ciudad, domicilio, telefono, email, protocolo_activado, protocolo, fecha_derivacion, profesional_derivante, observaciones_clinicas) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
-        (dni, apellido, nombre, genero, str(fecha_nacimiento), edad_actual, ciudad, domicilio, telefono, email, protocolo_activado == "Sí", protocolo_nombre or "", str(fecha_derivacion), profesional_derivante or "", observaciones_clinicas))
-    
-    conn.commit()
-    conn.close()
-
-def obtener_todos_los_pacientes():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT * FROM pacientes")
-    records = cursor.fetchall()
-    
-    conn.close()
-    
-    return pd.DataFrame(records , columns=["id", "dni", "apellido", "nombre", "genero", "fecha_nacimiento", "edad_actual", "ciudad", "domicilio", "telefono", "email", "protocolo_activado", "protocolo", "fecha_derivacion", "profesional_derivante","observaciones_clinicas", "profesional","especialidad","tipo_atencion", "fecha_turno","hora_turno","turno_confirmado"])
-
-def buscar_pacientes_sin_turnos():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT * FROM pacientes WHERE turno_confirmado IS NULL OR turno_confirmado = '' OR turno_confirmado = 0")
-    records = cursor.fetchall()
-    
-    conn.close()
-    
-    return pd.DataFrame(records , columns=["id", "dni", "apellido", "nombre", "genero", "fecha_nacimiento","edad_actual","ciudad", "domicilio","telefono","email", "protocolo_activado","protocolo", "fecha_derivacion","profesional_derivante", "observaciones_clinicas","profesional", "especialidad","tipo_atencion", "fecha_turno","hora_turno","turno_confirmado"])
-
-def asignar_turno_paciente(dni , profesional , especialidad , tipo_atencion , fecha_turno , hora_turno , turno_confirmado):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    
     try:
-        cursor.execute(''' 
-            UPDATE pacientes 
-            SET profesional=?, especialidad=?, tipo_atencion=?, fecha_turno=?, hora_turno=?, turno_confirmado=? 
-            WHERE dni=?''', 
-            (profesional , especialidad , tipo_atencion , fecha_turno , hora_turno , turno_confirmado == "Sí" , dni))
-        
+        st.write(f"Intentando insertar datos: DNI={dni}, Apellido={apellido}, Nombre={nombre}, fecha_nacimiento={fecha_nacimiento}, edad_actual={edad_actual}, ciudad={ciudad}, domicilio={domicilio}, telefono={telefono}, email={email}, protocolo_activado={protocolo_activado}, protocolo={protocolo_nombre}, fecha_derivacion={fecha_derivacion}, profesional_derivante={profesional_derivante}, observaciones_clinicas={observaciones_clinicas}")
+        sql = """
+            INSERT INTO pacientes (dni, apellido, nombre, genero, fecha_nacimiento, edad_actual, ciudad, domicilio, telefono, email, protocolo_activado, protocolo, fecha_derivacion, profesional_derivante, observaciones_clinicas) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        valores = (dni, apellido, nombre, genero, str(fecha_nacimiento), edad_actual, ciudad, domicilio, telefono, email, protocolo_activado, protocolo_nombre, str(fecha_derivacion), profesional_derivante, observaciones_clinicas)
+        cursor.execute(sql, valores)
         conn.commit()
-        st.success("Turno asignado exitosamente.")
-        
-    except Exception as e:
-        st.error(f"Ocurrió un error al asignar el turno: {e}")
-        
+        st.write("Datos insertados correctamente (cargar_datos_usuarios).")
+        st.success("Datos cargados exitosamente")
+    except sqlite3.Error as e:
+        st.error(f"Error al cargar los datos: {e}")
+        st.write(f"Error técnico (cargar_datos_usuarios): {e}") # Imprime el error completo
     finally:
         conn.close()
+        st.write("Conexión cerrada (cargar_datos_usuarios).")
 
+def asignar_turno_paciente(dni, profesional, especialidad, tipo_atencion, fecha_turno, hora_turno, turno_confirmado):
+    st.write("Intentando obtener conexión a la base de datos (asignar_turno_paciente)...")
+    conn = get_db_connection()
+    st.write("Conexión obtenida (asignar_turno_paciente).")
+    cursor = conn.cursor()
+    try:
+        st.write(f"Intentando asignar turno: DNI={dni}, profesional={profesional}, especialidad={especialidad}, tipo_atencion={tipo_atencion}, fecha_turno={fecha_turno}, hora_turno={hora_turno}, turno_confirmado={turno_confirmado}")
+        sql = """
+            UPDATE pacientes 
+            SET profesional=?, especialidad=?, tipo_atencion=?, fecha_turno=?, hora_turno=?, turno_confirmado=? 
+            WHERE dni=?
+        """
+        valores = (profesional, especialidad, tipo_atencion, fecha_turno, hora_turno, turno_confirmado, dni)
+        cursor.execute(sql, valores)
+        conn.commit()
+        st.write("Turno asignado correctamente (asignar_turno_paciente).")
+        st.success("Turno asignado exitosamente.")
+    except sqlite3.Error as e:
+        st.error(f"Ocurrió un error al asignar el turno: {e}")
+        st.write(f"Error técnico (asignar_turno_paciente): {e}") # Imprime el error completo
+    finally:
+        conn.close()
+        st.write("Conexión cerrada (asignar_turno_paciente).")
+        
+def obtener_todos_los_pacientes():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM pacientes")
+    records = cursor.fetchall()
+    conn.close()
+    return pd.DataFrame([dict(row) for row in records]) # Corrección para convertir a DataFrame
+
+def buscar_pacientes_sin_turnos():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM pacientes WHERE turno_confirmado IS NULL OR turno_confirmado = '' OR turno_confirmado = 0")
+    records = cursor.fetchall()
+    conn.close()
+    return pd.DataFrame([dict(row) for row in records]) # Corrección para convertir a DataFrame
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
