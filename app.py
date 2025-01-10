@@ -64,7 +64,11 @@ def crear_tablas():
     
     conn.commit()
     conn.close()
-
+    
+  
+st.title("IAPOS - Programa de Salud Mental")
+st.subheader("Para Fuerzas de Seguridad - Provincia de Santa Fe")
+    
 def cargar_usuarios():
     if os.path.exists(USUARIOS_CSV):
         return pd.read_csv(USUARIOS_CSV)
