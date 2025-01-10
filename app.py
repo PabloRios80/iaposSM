@@ -14,14 +14,30 @@ sqlite3.register_converter("DATETIME", lambda s: datetime.fromisoformat(s.decode
 USUARIOS_CSV = "usuarios.csv"
 PROFESIONALES_CSV = "profesionales.csv"
 
-# Conectar a la base de datos SQLite
+
+# Nombre de la base de datos
 DB_NAME = 'salud_mental.db'
 
-# Función para obtener la conexión a la base de datos (CRUCIAL)
+# Función para obtener la conexión a la base de datos (CORREGIDA)
 def get_db_connection():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row  # Para acceder a los datos por nombre de columna
-    return conn
+    try:
+        # Obtener el directorio del script actual (RUTA ABSOLUTA)
+        dir_path = os.path.dirname(os.path.abspath(__file__)) # Usar os.path.abspath
+        # Construir la ruta ABSOLUTA a la base de datos
+        db_path = os.path.join(dir_path, DB_NAME)
+        st.write(f"Ruta de la base de datos: {db_path}") # Imprimir la ruta (para depurar)
+
+        # Verificar si el archivo de la base de datos existe, si no, lo crea.
+        if not os.path.exists(db_path):
+            st.write("Creando nueva base de datos")
+            open(db_path, 'a').close()
+
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except sqlite3.Error as e:
+        st.error(f"Error al conectar a la base de datos: {e}")
+        return None
 
 def crear_tablas():
     conn = get_db_connection()
@@ -64,11 +80,7 @@ def crear_tablas():
     
     conn.commit()
     conn.close()
-    
-  
-st.title("IAPOS - Programa de Salud Mental")
-st.subheader("Para Fuerzas de Seguridad - Provincia de Santa Fe")
-    
+
 def cargar_usuarios():
     if os.path.exists(USUARIOS_CSV):
         return pd.read_csv(USUARIOS_CSV)
